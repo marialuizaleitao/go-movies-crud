@@ -27,6 +27,18 @@ func getMovies(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(movies)
 }
 
+func getMovie(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	for _, movie := range movies {
+		if movie.ID == params["id"] {
+			json.NewEncoder(w).Encode(movie)
+			return
+		}
+	}
+	http.Error(w, "Movie not found", http.StatusNotFound)
+}
+
 func main() {
 	r := mux.NewRouter()
 
