@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/mux"
 	"log"
 	"math/rand"
@@ -24,11 +25,33 @@ type Director struct {
 
 var movies []Movie
 
+// @title Movies API
+// @version 1.0
+// @description This is a simple API for managing a collection of movies.
+// @contact.name API Support
+// @contact.email support@example.com
+
+// getMovies godoc
+// @summary Get all movies
+// @description Get details of all movies
+// @tags movies
+// @produce json
+// @success 200 {array} Movie
+// @router /movies [get]
 func getMovies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(movies)
 }
 
+// getMovie godoc
+// @summary Get a movie by ID
+// @description Get details of a movie by ID
+// @tags movies
+// @produce json
+// @param id path string true "Movie ID"
+// @success 200 {object} Movie
+// @failure 404 {object} string "Movie not found"
+// @router /movies/{id} [get]
 func getMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -41,6 +64,16 @@ func getMovie(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Movie not found", http.StatusNotFound)
 }
 
+// createMovie godoc
+// @summary Create a new movie
+// @description Create a new movie with a random ID
+// @tags movies
+// @accept json
+// @produce json
+// @param movie body Movie true "New movie details"
+// @success 201 {object} Movie
+// @failure 400 {object} string "Bad request"
+// @router /movies [post]
 func createMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var movie Movie
@@ -54,6 +87,18 @@ func createMovie(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(movie)
 }
 
+// updateMovie godoc
+// @summary Update a movie by ID
+// @description Update details of a movie by ID
+// @tags movies
+// @accept json
+// @produce json
+// @param id path string true "Movie ID"
+// @param movie body Movie true "Updated movie details"
+// @success 200 {object} Movie
+// @failure 400 {object} string "Bad request"
+// @failure 404 {object} string "Movie not found"
+// @router /movies/{id} [put]
 func updateMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -73,6 +118,15 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Movie not found", http.StatusNotFound)
 }
 
+// deleteMovie godoc
+// @summary Delete a movie by ID
+// @description Delete a movie by ID
+// @tags movies
+// @produce json
+// @param id path string true "Movie ID"
+// @success 200 {array} Movie
+// @failure 404 {object} string "Movie not found"
+// @router /movies/{id} [delete]
 func deleteMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -89,8 +143,6 @@ func deleteMovie(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 
-	movies = append(movies, Movie{ID: "1", Genre: "Drama", Title: "The Godfather", Directors: &Director{FirstName: "Francis", LastName: "Ford Coppola"}})
-	movies = append(movies, Movie{ID: "2", Genre: "Thriller", Title: "Psycho", Directors: &Director{FirstName: "Alfred", LastName: "Hitchcock"}})
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"message": "Welcome to the Movies API!"})
@@ -100,6 +152,13 @@ func main() {
 	r.HandleFunc("/movies", createMovie).Methods("POST")
 	r.HandleFunc("/movies/{id}", updateMovie).Methods("PUT")
 	r.HandleFunc("/movies/{id}", deleteMovie).Methods("DELETE")
+
+	opts := middleware.SwaggerUIOpts{SpecURL: "/swagger.yaml"}
+	sh := middleware.SwaggerUI(opts, nil)
+	r.Handle("/docs", sh)
+
+	// Serve the Swagger spec
+	r.Path("/swagger.yaml").Handler(http.FileServer(http.Dir("./")))
 
 	fmt.Println("Starting server on port 8000")
 	log.Fatal(http.ListenAndServe(":8000", r))
