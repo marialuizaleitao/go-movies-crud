@@ -44,9 +44,13 @@ func getMovie(w http.ResponseWriter, r *http.Request) {
 func createMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var movie Movie
-	_ = json.NewDecoder(r.Body).Decode(&movie)
+	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	movie.ID = strconv.Itoa(rand.Intn(1000000))
 	movies = append(movies, movie)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(movie)
 }
 
@@ -55,12 +59,27 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	for index, movie := range movies {
 		if movie.ID == params["id"] {
-			movies = append(movies[:index], movies[index+1:]...)
 			var updatedMovie Movie
-			_ = json.NewDecoder(r.Body).Decode(&updatedMovie)
+			if err := json.NewDecoder(r.Body).Decode(&updatedMovie); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			updatedMovie.ID = params["id"]
-			movies = append(movies, updatedMovie)
+			movies[index] = updatedMovie
 			json.NewEncoder(w).Encode(updatedMovie)
+			return
+		}
+	}
+	http.Error(w, "Movie not found", http.StatusNotFound)
+}
+
+func deleteMovie(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	for index, movie := range movies {
+		if movie.ID == params["id"] {
+			movies = append(movies[:index], movies[index+1:]...)
+			json.NewEncoder(w).Encode(movies)
 			return
 		}
 	}
@@ -72,6 +91,10 @@ func main() {
 
 	movies = append(movies, Movie{ID: "1", Genre: "Drama", Title: "The Godfather", Directors: &Director{FirstName: "Francis", LastName: "Ford Coppola"}})
 	movies = append(movies, Movie{ID: "2", Genre: "Thriller", Title: "Psycho", Directors: &Director{FirstName: "Alfred", LastName: "Hitchcock"}})
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"message": "Welcome to the Movies API!"})
+	})
 	r.HandleFunc("/movies", getMovies).Methods("GET")
 	r.HandleFunc("/movies/{id}", getMovie).Methods("GET")
 	r.HandleFunc("/movies", createMovie).Methods("POST")
